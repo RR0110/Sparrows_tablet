@@ -5,6 +5,12 @@
 #include <TimeLib.h>
 #include <WiFiUdp.h>
 
+#include "DHT.h"
+#define DHTPIN 5           // пин подключения контакта DATA
+#define DHTTYPE DHT11      // датчик DHT 22 
+#define INTERVAL_GET_DATA 2000  // интервала измерений, 
+DHT dht(DHTPIN, DHTTYPE);
+
 WiFiUDP Udp;
 unsigned int localPort = 8888;  // local port to listen for UDP packets
 static const char ntpServerName[] = "us.pool.ntp.org";
@@ -18,7 +24,7 @@ time_t prevDisplay = 0; // when the digital clock was displayed
 const char* ssid = "123";
 const char* password = "321";
 
-#define BOTtoken "12345"
+#define BOTtoken "11111111"
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
@@ -74,14 +80,26 @@ void handleNewMessages(int numNewMessages)
       }
     }
     else if(text == "/keyboard" || text == "keyboard") {
-      String keyboardJson = "[[\"On\", \"Off\"],[\"Status\"]]";
+      String keyboardJson = "[[\"On\", \"Off\", \"Status\"],[\"Temp\"]]";
       bot.sendMessageWithReplyKeyboard(chat_id, "123", "", keyboardJson, true);
+    }
+    else if(text == "/temp" || text == "temp") {
+      float h = dht.readHumidity();
+      float t = dht.readTemperature();
+      String temp = "Температура: ";
+      temp += t;
+      temp += " C\n";
+      temp += "Влажность: ";
+      temp += h;
+      temp += " %\n";
+      bot.sendMessage(chat_id, temp, "Markdown");
     }
     else if (text == "/start") {
       String welcome = "Команды:\n";
       welcome += "/on или on: Изменить статус Воробьева на \"Воробьев пришел\"\n";
       welcome += "/off или off: Изменить статус Воробьева на \"Воробьев ушел\"\n";
       welcome += "/status или status: Узнать есть ли Воробьев на факультете\n";
+      welcome += "/temp или temp: Узнать температуру и влажность\n";
       welcome += "/keyboard или keyboard: Показать клавиатуру\n";
       bot.sendMessage(chat_id, welcome, "Markdown");
     }
@@ -115,7 +133,9 @@ void setup() {
   Serial.println(WiFi.localIP());
   if( myservo.read() >= 130) servoStatus = true;
   else servoStatus = false;
-
+  
+   dht.begin();         // запуск DHT       
+   
 //TIME
 Udp.begin(localPort);
   //Serial.print("Local port: ");
